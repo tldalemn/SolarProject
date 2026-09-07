@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project Sunny St. Paul — A Solar Field Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Arvo:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+
+  :root{
+    --cream: #f1e6c9;
+    --cream-2: #e9d9ac;
+    --rust: #c1502e;
+    --rust-dark: #96381d;
+    --mustard: #d9a404;
+    --olive: #5c6b3b;
+    --olive-dark: #3f4a28;
+    --teal: #2f6e62;
+    --ink: #2b2118;
+    --paper-line: rgba(43,33,24,0.18);
+  }
+
+  *{ box-sizing: border-box; }
+
+  html, body{
+    margin:0;
+    padding:0;
+    background: var(--cream);
+    color: var(--ink);
+    font-family: 'Arvo', Georgia, serif;
+    min-height: 100%;
+  }
+
+  body{
+    background-image:
+      radial-gradient(circle, rgba(43,33,24,0.06) 1px, transparent 1.2px);
+    background-size: 14px 14px;
+  }
+
+  .app{
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* ---- side tab rail ---- */
+  .rail{
+    width: 210px;
+    flex-shrink: 0;
+    background: var(--olive-dark);
+    padding: 28px 0 28px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    height: 100vh;
+  }
+
+  .rail-brand{
+    color: var(--cream);
+    font-family: 'Alfa Slab One', serif;
+    font-size: 15px;
+    line-height: 1.3;
+    padding: 0 22px 26px 22px;
+    border-bottom: 3px solid var(--mustard);
+    margin: 0 18px 18px 18px;
+  }
+
+  .tab{
+    all: unset;
+    cursor: pointer;
+    color: var(--cream-2);
+    font-family: 'Arvo', serif;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 13px 22px;
+    border-left: 6px solid transparent;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  }
+  .tab .num{
+    color: var(--mustard);
+    font-family: 'Alfa Slab One', serif;
+    font-size: 12px;
+    margin-right: 8px;
+  }
+  .tab:hover{
+    background: rgba(241,230,201,0.06);
+    color: var(--cream);
+  }
+  .tab.active{
+    background: var(--cream);
+    color: var(--rust-dark);
+    border-left-color: var(--rust);
+  }
+  .tab.active .num{ color: var(--rust); }
+
+  .rail-foot{
+    margin-top: auto;
+    padding: 18px 22px 0 22px;
+    color: rgba(241,230,201,0.55);
+    font-size: 11px;
+    line-height: 1.5;
+  }
+
+  /* ---- main content ---- */
+  main{
+    flex: 1;
+    padding: 56px 64px 90px 64px;
+    max-width: 900px;
+  }
+
+  .page{ display: none; }
+  .page.active{ display: block; animation: fadein 0.4s ease; }
+
+  @keyframes fadein{
+    from{ opacity: 0; transform: translateY(6px); }
+    to{ opacity: 1; transform: translateY(0); }
+  }
+
+  .eyebrow-rule{
+    display:flex;
+    align-items:center;
+    gap: 14px;
+    margin-bottom: 22px;
+  }
+  .eyebrow-rule .dot{
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--rust);
+    flex-shrink:0;
+  }
+  .eyebrow-rule .line{
+    flex:1;
+    height: 3px;
+    background: var(--ink);
+    opacity: 0.15;
+  }
+
+  h1.title{
+    font-family: 'Alfa Slab One', serif;
+    font-size: 52px;
+    line-height: 1.05;
+    color: var(--rust-dark);
+    margin: 0 0 14px 0;
+    max-width: 11ch;
+  }
+
+  h2.section-title{
+    font-family: 'Alfa Slab One', serif;
+    font-size: 34px;
+    color: var(--olive-dark);
+    margin: 0 0 20px 0;
+  }
+
+  p.lede{
+    font-size: 19px;
+    line-height: 1.6;
+    max-width: 62ch;
+    margin: 0 0 26px 0;
+  }
+
+  p{
+    font-size: 16px;
+    line-height: 1.7;
+    max-width: 64ch;
+  }
+
+  .byline{
+    font-size: 13px;
+    letter-spacing: 0.02em;
+    color: var(--olive-dark);
+    margin-top: 30px;
+  }
+
+  /* sun mark */
+  .sunmark{
+    width: 92px;
+    height: 92px;
+    margin-bottom: 30px;
+    position: relative;
+  }
+  .sunmark .core{
+    position:absolute; inset: 20px;
+    background: var(--mustard);
+    border-radius: 50%;
+    border: 4px solid var(--ink);
+  }
+  .sunmark .ray{
+    position:absolute;
+    background: var(--ink);
+    width: 4px; height: 16px;
+    left: 44px; top: -2px;
+    transform-origin: 50% 48px;
+  }
+
+  .btn{
+    all: unset;
+    cursor: pointer;
+    display: inline-block;
+    background: var(--rust);
+    color: var(--cream);
+    font-family: 'Arvo', serif;
+    font-weight: 700;
+    font-size: 15px;
+    padding: 13px 26px;
+    border: 3px solid var(--ink);
+    box-shadow: 5px 5px 0 var(--ink);
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+  }
+  .btn:hover{
+    transform: translate(-2px,-2px);
+    box-shadow: 7px 7px 0 var(--ink);
+  }
+  .btn:active{
+    transform: translate(2px,2px);
+    box-shadow: 2px 2px 0 var(--ink);
+  }
+
+  /* equipment cards */
+  .gear-grid{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 22px;
+    margin-top: 10px;
+  }
+  .gear-card{
+    background: var(--cream-2);
+    border: 3px solid var(--ink);
+    padding: 22px;
+  }
+  .gear-card h3{
+    font-family: 'Alfa Slab One', serif;
+    font-size: 18px;
+    color: var(--rust-dark);
+    margin: 0 0 4px 0;
+  }
+  .gear-card .tag{
+    display:inline-block;
+    background: var(--olive);
+    color: var(--cream);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 9px;
+    margin-bottom: 12px;
+  }
+  .spec-row{
+    display:flex;
+    justify-content: space-between;
+    font-size: 14px;
+    padding: 6px 0;
+    border-bottom: 1px dashed var(--paper-line);
+  }
+  .spec-row:last-child{ border-bottom:none; }
+  .spec-row .k{ color: var(--olive-dark); font-weight: 700; }
+
+  .adapter-note{
+    margin-top: 20px;
+    padding: 16px 18px;
+    background: var(--cream);
+    border-left: 5px solid var(--mustard);
+    font-size: 14px;
+  }
+
+  /* component breakdown */
+  .mini-title{
+    font-family: 'Alfa Slab One', serif;
+    font-size: 22px;
+    color: var(--olive-dark);
+    margin: 44px 0 6px 0;
+  }
+  .component-grid{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-top: 18px;
+  }
+  .component-card{
+    background: var(--cream-2);
+    border: 3px solid var(--ink);
+    padding: 18px 20px;
+  }
+  .component-card h4{
+    font-family: 'Arvo', serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--rust-dark);
+    margin: 0 0 8px 0;
+  }
+  .component-card p{
+    font-size: 13.5px;
+    line-height: 1.6;
+    margin: 0 0 10px 0;
+  }
+  .tag.need{ background: var(--rust); }
+  .tag.built{ background: var(--mustard); color: var(--ink); }
+
+  .rollup-note{
+    margin-top: 22px;
+    padding: 18px 20px;
+    background: var(--olive-dark);
+    color: var(--cream);
+    border: 3px solid var(--ink);
+    font-size: 14.5px;
+    line-height: 1.6;
+  }
+  .rollup-note strong{ color: var(--mustard); }
+
+  /* plan page */
+  .plan-steps{
+    counter-reset: step;
+    margin-top: 8px;
+  }
+  .step{
+    display:flex;
+    gap: 18px;
+    margin-bottom: 22px;
+    align-items: flex-start;
+  }
+  .step .marker{
+    counter-increment: step;
+    flex-shrink:0;
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: var(--olive);
+    color: var(--cream);
+    font-family: 'Alfa Slab One', serif;
+    font-size: 16px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .step .marker::before{ content: counter(step); }
+  .step .text{ padding-top: 4px; }
+  .step .text strong{ color: var(--rust-dark); }
+
+  /* log page */
+  table.ledger{
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    font-size: 14px;
+    background: var(--cream-2);
+  }
+  table.ledger th, table.ledger td{
+    border: 2px solid var(--ink);
+    padding: 10px 14px;
+    text-align: left;
+  }
+  table.ledger th{
+    background: var(--olive-dark);
+    color: var(--cream);
+    font-family: 'Arvo', serif;
+  }
+  table.ledger tr:nth-child(even){ background: var(--cream); }
+
+  .fill-note{
+    margin-top: 14px;
+    font-size: 13px;
+    font-style: italic;
+    color: var(--olive-dark);
+  }
+
+  .ledger-summary{
+    display:flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin: 18px 0;
+  }
+  .ledger-summary .stat{
+    background: var(--olive-dark);
+    color: var(--cream);
+    padding: 10px 18px;
+    border: 3px solid var(--ink);
+    font-size: 12.5px;
+    min-width: 130px;
+  }
+  .ledger-summary .stat b{
+    display:block;
+    font-family:'Alfa Slab One', serif;
+    font-size: 19px;
+    color: var(--mustard);
+    margin-bottom: 2px;
+  }
+
+  /* reveal page */
+  .chart{
+    margin-top: 20px;
+  }
+  .bar-row{
+    margin-bottom: 20px;
+  }
+  .bar-label{
+    display:flex; justify-content: space-between;
+    font-size: 14px; font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .bar-track{
+    background: var(--cream-2);
+    border: 2px solid var(--ink);
+    height: 30px;
+    position: relative;
+    overflow: hidden;
+  }
+  .bar-fill{
+    height: 100%;
+    width: 0%;
+    transition: width 1.4s cubic-bezier(.2,.9,.25,1);
+  }
+  .bar-fill.rust{ background: var(--rust); }
+  .bar-fill.olive{ background: var(--olive); }
+  .bar-fill.mustard{ background: var(--mustard); }
+  .bar-fill.teal{ background: var(--teal); }
+
+  .reveal-number{
+    font-family: 'Alfa Slab One', serif;
+    font-size: 64px;
+    color: var(--rust-dark);
+    margin: 26px 0 6px 0;
+  }
+  .reveal-sub{
+    font-size: 15px;
+    color: var(--olive-dark);
+    max-width: 52ch;
+  }
+
+  /* closing */
+  .close-block{
+    background: var(--olive-dark);
+    color: var(--cream);
+    padding: 34px 38px;
+    margin-top: 10px;
+    border: 3px solid var(--ink);
+  }
+  .close-block h2{
+    font-family: 'Alfa Slab One', serif;
+    color: var(--mustard);
+    font-size: 26px;
+    margin-top:0;
+  }
+  .close-block p{ color: var(--cream); max-width: 60ch; }
+
+  /* photo slots */
+  .photo-slot{
+    border: 3px dashed var(--ink);
+    background: rgba(43,33,24,0.05);
+    height: 220px;
+    display:flex; align-items:center; justify-content:center;
+    color: var(--olive-dark);
+    font-size: 13px;
+    font-style: italic;
+    margin: 22px 0;
+    max-width: 500px;
+  }
+  .photo-slot img{
+    width:100%; height:100%; object-fit: cover; object-position: top center;
+  }
+
+  .photo-trio{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 22px 0;
+  }
+  .photo-trio .photo-slot{
+    max-width: none;
+    height: 160px;
+    margin: 0;
+  }
+
+  .photo-full{
+    border: 3px dashed var(--ink);
+    background: rgba(43,33,24,0.05);
+    max-width: 500px;
+    margin: 22px 0;
+    overflow: hidden;
+  }
+  .photo-full img{
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  @media (max-width: 760px){
+    .photo-trio{ grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 760px){
+    .app{ flex-direction: column; }
+    .rail{ width: 100%; height: auto; position: relative; flex-direction: row; overflow-x: auto; padding: 16px 8px; }
+    .rail-brand{ display:none; }
+    .rail-foot{ display:none; }
+    .tab{ white-space: nowrap; border-left:none; border-bottom: 4px solid transparent; }
+    .tab.active{ border-left:none; border-bottom-color: var(--rust); }
+    main{ padding: 34px 22px 70px 22px; }
+    h1.title{ font-size: 38px; }
+    .gear-grid{ grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <nav class="rail">
+    <div class="rail-brand">PROJECT<br>SUNNY ST. PAUL</div>
+    <button class="tab active" data-page="cover"><span class="num">00</span>The Project</button>
+    <button class="tab" data-page="equipment"><span class="num">01</span>The Rig</button>
+    <button class="tab" data-page="plan"><span class="num">02</span>The Plan</button>
+    <button class="tab" data-page="log"><span class="num">03</span>The Ledger</button>
+    <button class="tab" data-page="reveal"><span class="num">04</span>The Number</button>
+    <button class="tab" data-page="closing"><span class="num">05</span>So What</button>
+    <div class="rail-foot">A CoPHE Talk<br>Washington County PHE</div>
+  </nav>
+
+  <main>
+
+    <section class="page active" id="page-cover">
+      <div class="sunmark" id="sun"></div>
+      <h1 class="title">Project Sunny St. Paul</h1>
+      <p class="lede">How much of my home can a solar battery bank power? I built it, tracked it, and did the math.</p>
+      <button class="btn" data-goto="equipment">Power On →</button>
+    </section>
+
+    <section class="page" id="page-equipment">
+      <div class="eyebrow-rule"><div class="dot"></div><div class="line"></div></div>
+      <h2 class="section-title">The Rig</h2>
+      <p class="lede">Before the log starts, here's exactly what's charging what.</p>
+
+      <div class="gear-grid">
+        <div class="gear-card">
+          <span class="tag">BATTERY</span>
+          <h3>Grid Doctor 300</h3>
+          <div class="spec-row"><span class="k">Capacity</span><span>320Wh</span></div>
+          <div class="spec-row"><span class="k">Chemistry</span><span>LiFePO4</span></div>
+          <div class="spec-row"><span class="k">Cycle life</span><span>2,000+ to 80% capacity</span></div>
+          <div class="spec-row"><span class="k">Solar input</span><span>18–20V, 4A, 80W max</span></div>
+        </div>
+        <div class="gear-card">
+          <span class="tag">PANEL</span>
+          <h3>Weize SP100W</h3>
+          <div class="spec-row"><span class="k">Rated power</span><span>100W monocrystalline</span></div>
+          <div class="spec-row"><span class="k">Vmp / Imp</span><span>18.78V / 5.32A</span></div>
+          <div class="spec-row"><span class="k">Voc / Isc</span><span>22.64V / 5.70A</span></div>
+          <div class="spec-row"><span class="k">Weight</span><span>7.31 kg, rigid glass</span></div>
+        </div>
+      </div>
+
+      <div class="photo-full">
+        <img src="images/panel.jpg" alt="My kid holding the multimeter reading the panel's voltage">
+      </div>
+
+      <div class="photo-full">
+        <img src="images/cords.jpg" alt="Solar charging cable with connectors, still in packaging">
+      </div>
+
+      <div class="photo-slot">photo: Grid Doctor 300</div>
+
+      <h3 class="mini-title">What a Solar Setup Actually Needs</h3>
+      <p>Every solar charging setup, from a windowsill rig to a full rooftop array, is built from the same five pieces. Here's what each one does — and which ones I actually had to buy.</p>
+
+      <div class="component-grid">
+        <div class="component-card">
+          <h4>Solar Panel</h4>
+          <p>Captures sunlight and converts it into raw DC electricity. This is the only piece that has to sit outside in the sun.</p>
+        </div>
+        <div class="component-card">
+          <h4>Charge Controller</h4>
+          <p>Regulates the voltage and current coming off the panel so it doesn't overcharge, overheat, or damage the battery cells.</p>
+        </div>
+        <div class="component-card">
+          <h4>Battery Bank</h4>
+          <p>Stores the energy for later use. The Grid Doctor's 320Wh LiFePO4 pack is exactly this — it's the "battery" in the box.</p>
+        </div>
+        <div class="component-card">
+          <h4>Inverter</h4>
+          <p>Converts stored DC power into AC, which is what's needed to run standard wall-outlet devices instead of just DC ports.</p>
+        </div>
+        <div class="component-card">
+          <h4>BMS (Battery Management System)</h4>
+          <p>Watches over the cells — balances charge across them, and cuts power if there's overcurrent, overheat, or a short.</p>
+        </div>
+        <div class="component-card">
+          <h4>Wiring &amp; Connectors</h4>
+          <p>The cable and connector that carries power from the panel to the battery's charging port. Everything downstream is internal.</p>
+        </div>
+      </div>
+
+      <div class="rollup-note">
+        In a from-scratch DIY solar setup, the charge controller, inverter, and BMS are each separate components you'd have to source, wire, and fuse yourself. A power station like the <strong>Grid Doctor 300</strong> folds all three into one sealed box. That's why this whole rig came down to two purchases: a panel, and a cable to connect it.
+      </div>
+    </section>
+
+    <section class="page" id="page-plan">
+      <div class="eyebrow-rule"><div class="dot"></div><div class="line"></div></div>
+      <h2 class="section-title">The Plan</h2>
+      <p class="lede">Add a panel. Charge a battery. Save the planet. Right?</p>
+
+      <div class="plan-steps">
+        <div class="step">
+          <div class="marker"></div>
+          <div class="text"><strong>Set the panel out</strong> whenever there's usable sun and let it feed the Grid Doctor.</div>
+        </div>
+        <div class="step">
+          <div class="marker"></div>
+          <div class="text"><strong>Log every solar charge</strong> — date and how full the battery got.</div>
+        </div>
+        <div class="step">
+          <div class="marker"></div>
+          <div class="text"><strong>Add it up in kWh</strong> at the end of the tracking period.</div>
+        </div>
+        <div class="step">
+          <div class="marker"></div>
+          <div class="text"><strong>Apply Minnesota's grid factor</strong> (~0.4 kg CO₂ per kWh) to see what would've been burned instead.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" id="page-log">
+      <div class="eyebrow-rule"><div class="dot"></div><div class="line"></div></div>
+      <h2 class="section-title">The Ledger</h2>
+      <p class="lede">Every entry is a real charge, logged the day it happened. Fill this in as you go.</p>
+
+      <div class="photo-full">
+        <img src="images/charging.jpg" alt="Grid Doctor 300 charging under the panel, propped against a deck">
+      </div>
+
+      <div class="ledger-summary" id="ledger-summary">
+        <div class="stat"><b>—</b>Loading…</div>
+      </div>
+
+      <table class="ledger">
+        <thead>
+          <tr><th>Date</th><th>Duration</th><th>Energy added</th><th>Avg watts</th><th>Running total</th></tr>
+        </thead>
+        <tbody id="ledger-rows">
+          <tr><td colspan="5">Loading the charging log…</td></tr>
+        </tbody>
+      </table>
+      <div class="fill-note" id="ledger-updated">Pulling live data from the charging log spreadsheet.</div>
+    </section>
+
+    <section class="page" id="page-reveal">
+      <div class="eyebrow-rule"><div class="dot"></div><div class="line"></div></div>
+      <h2 class="section-title">The Number</h2>
+      <p class="lede">Here's the total, next to two things everyone already has a feel for.</p>
+
+      <div class="chart" id="chart">
+        <div class="bar-row">
+          <div class="bar-label"><span>My panel, so far</span><span id="reveal-my-co2">— kg CO₂</span></div>
+          <div class="bar-track"><div class="bar-fill rust" id="reveal-my-bar" data-width="0.5%"></div></div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label"><span>One round-trip car commute</span><span>~9 kg CO₂</span></div>
+          <div class="bar-track"><div class="bar-fill mustard" data-width="1.3%"></div></div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label"><span>A typical home rooftop array, one year</span><span>~2,800 kg CO₂ avoided</span></div>
+          <div class="bar-track"><div class="bar-fill teal" data-width="100%"></div></div>
+        </div>
+      </div>
+
+      <p class="fill-note" id="reveal-live-note">Live from the charging log — updates automatically as sessions are added.</p>
+
+      <div class="reveal-number">1 panel → 1 house</div>
+      <p class="reveal-sub">A typical residential array is about 20–25 of my panels wired together, generating roughly 7,000–10,000 kWh a year instead of my 15–20. Same sunlight, same physics, same math — just scaled up to cover a whole home's draw instead of a phone.</p>
+    </section>
+
+    <section class="page" id="page-closing">
+      <div class="eyebrow-rule"><div class="dot"></div><div class="line"></div></div>
+      <h2 class="section-title">So What</h2>
+      <p class="lede">One panel is a starting point, not the finish line.</p>
+      <div class="close-block">
+        <h2>The same idea, sized up</h2>
+        <p>My one panel proves the concept on a windowsill scale. Wire together twenty of them on a roof, pointed at the same sun, and you're offsetting a whole household's electricity instead of a phone charger — thousands of kilograms of CO₂ a year instead of single digits. The physics doesn't change between the two. Only the scale does, and scale is exactly the lever worth pulling next.</p>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  const tabs = document.querySelectorAll('.tab');
+  const pages = document.querySelectorAll('.page');
+  const gotoBtns = document.querySelectorAll('[data-goto]');
+
+  function showPage(name){
+    pages.forEach(p => p.classList.toggle('active', p.id === 'page-' + name));
+    tabs.forEach(t => t.classList.toggle('active', t.dataset.page === name));
+    if(name === 'reveal'){ animateChart(); }
+  }
+
+  tabs.forEach(t => t.addEventListener('click', () => showPage(t.dataset.page)));
+  gotoBtns.forEach(b => b.addEventListener('click', () => showPage(b.dataset.goto)));
+
+  function animateChart(){
+    document.querySelectorAll('.bar-fill').forEach(el => {
+      el.style.width = '0%';
+      requestAnimationFrame(() => {
+        setTimeout(() => { el.style.width = el.dataset.width; }, 40);
+      });
+    });
+  }
+
+  // sun rays
+  const sun = document.getElementById('sun');
+  for(let i=0;i<10;i++){
+    const ray = document.createElement('div');
+    ray.className = 'ray';
+    ray.style.transform = `rotate(${i * 36}deg)`;
+    sun.appendChild(ray);
+  }
+  const core = document.createElement('div');
+  core.className = 'core';
+  sun.appendChild(core);
+
+  // --- live ledger, pulled from the published Google Sheet CSV ---
+  const LOG_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTt8pS03Q3ibRbBYK2K1I2kMKCg8AqNgG657b1MYEVG0JsRlq1iOtYvJXqQX2cHjA/pub?gid=1072509333&single=true&output=csv";
+
+  async function loadLedger(){
+    const rowsEl = document.getElementById('ledger-rows');
+    const summaryEl = document.getElementById('ledger-summary');
+    const updatedEl = document.getElementById('ledger-updated');
+    try{
+      const res = await fetch(LOG_CSV_URL, { cache: 'no-store' });
+      const text = await res.text();
+      const data = Papa.parse(text, { skipEmptyLines: false }).data;
+
+      const headerIdx = data.findIndex(r => r[0] === 'Date');
+      if(headerIdx === -1) throw new Error('Could not find header row');
+      const headers = data[headerIdx];
+      const col = name => headers.indexOf(name);
+      const iDate = col('Date'), iDuration = col('Duration (hrs)'),
+            iEnergy = col('Energy Added (Wh)'), iAvgWatts = col('Avg Watts'),
+            iRunning = col('Running Total (kWh)');
+
+      const totalsRowIdx = data.findIndex((r, i) => i > headerIdx && r[0] === 'Totals');
+      const sessions = data
+        .slice(headerIdx + 1, totalsRowIdx > -1 ? totalsRowIdx : undefined)
+        .filter(r => r[iDate] && r[iDate].trim() !== '');
+
+      rowsEl.innerHTML = sessions.length ? sessions.map(r => {
+        const duration = r[iDuration] ? `${r[iDuration]} hrs` : '—';
+        const wh = r[iEnergy] ? `${r[iEnergy]} Wh` : '—';
+        const avgWatts = r[iAvgWatts] ? `${r[iAvgWatts]} W` : '—';
+        const running = r[iRunning] ? `${r[iRunning]} kWh` : '—';
+        return `<tr><td>${r[iDate]}</td><td>${duration}</td><td>${wh}</td><td>${avgWatts}</td><td>${running}</td></tr>`;
+      }).join('') : '<tr><td colspan="5">No sessions logged yet.</td></tr>';
+
+      const findVal = label => {
+        const row = data.find(r => r[0] === label);
+        return row ? row[1] : '—';
+      };
+      const totalKwh = findVal('Total Energy Added (kWh):');
+      const totalCo2 = findVal('Total CO2 Avoided (kg):');
+      const totalSessions = findVal('Total Sessions Logged:');
+
+      summaryEl.innerHTML = `
+        <div class="stat"><b>${totalSessions}</b>Sessions logged</div>
+        <div class="stat"><b>${totalKwh} kWh</b>Total energy added</div>
+        <div class="stat"><b>${totalCo2} kg</b>CO2 avoided</div>
+      `;
+      updatedEl.textContent = 'Live from the charging log spreadsheet — updates automatically whenever the sheet changes.';
+
+      // feed the same totals into the Number page's live bar
+      const co2Num = parseFloat(totalCo2);
+      const revealCo2El = document.getElementById('reveal-my-co2');
+      const revealBarEl = document.getElementById('reveal-my-bar');
+      if(revealCo2El && !isNaN(co2Num)){
+        revealCo2El.textContent = `${totalCo2} kg CO₂`;
+        const REFERENCE_MAX = 2800; // matches the "typical home rooftop, one year" bar
+        const pct = Math.max(0.5, Math.min(100, (co2Num / REFERENCE_MAX) * 100));
+        revealBarEl.dataset.width = pct.toFixed(2) + '%';
+      }
+    } catch(err){
+      rowsEl.innerHTML = '<tr><td colspan="5">Couldn\'t load the live log right now — check your connection.</td></tr>';
+      summaryEl.innerHTML = '';
+      updatedEl.textContent = 'Live data unavailable.';
+      console.error(err);
+    }
+  }
+  loadLedger();
+</script>
+
+</body>
+</html>
